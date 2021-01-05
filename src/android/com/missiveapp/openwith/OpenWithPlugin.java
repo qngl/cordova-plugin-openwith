@@ -2,6 +2,7 @@ package com.missiveapp.openwith;
 
 import android.content.ContentResolver;
 import android.content.Intent;
+import android.net.Uri;
 import android.util.Log;
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -173,6 +174,7 @@ public class OpenWithPlugin extends CordovaPlugin {
 
     final JSONObject json = toJSONObject(intent);
     if (json != null) {
+      log(DEBUG, "onNewIntent() json: " + json.toString());
       pendingIntents.add(json);
     }
 
@@ -212,12 +214,27 @@ public class OpenWithPlugin extends CordovaPlugin {
       final ContentResolver contentResolver = this.cordova
         .getActivity().getApplicationContext().getContentResolver();
 
-      return Serializer.toJSONObject(contentResolver, intent);
+
+      if(Intent.ACTION_VIEW.equals(intent.getAction())) {
+        String fileUrl = intent.getDataString();
+        if (fileUrl != null) {
+          log(DEBUG, "onNewIntent() intent.getDataString(): " + fileUrl);
+
+          final JSONObject action = new JSONObject();
+          action.put("action", Serializer.translateAction(intent.getAction()));
+          JSONObject fileItem = Serializer.toJSONObject(contentResolver, Uri.parse(fileUrl));
+          JSONArray items =  new JSONArray(new JSONObject[] { fileItem });
+          action.put("items", items);
+          return action;
+        }
+      } else {
+        return Serializer.toJSONObject(contentResolver, intent);
+      }
     } catch (JSONException e) {
       log(ERROR, "Error converting intent to JSON: " + e.getMessage());
       log(ERROR, Arrays.toString(e.getStackTrace()));
-
-      return null;
     }
+    return null;
   }
 }
+
